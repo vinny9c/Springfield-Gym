@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Springfield Gym - Shared System</title>
+    <title>Springfield Gym - Shared Cloud System</title>
     <link rel="stylesheet" href="style.css">
+    <!-- IMPORTS THE CLOUD ENGINE BINDINGS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <!-- SYSTEM STAFF AUTHENTICATION OVERLAY -->
+    <!-- STAFF AUTHENTICATION MODAL -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
             <h2>SPRINGFIELD GYM</h2>
@@ -18,15 +20,13 @@
             <button class="user-select-btn" onclick="selectUser('Kevoh')">Kevoh</button>
         </div>
     </div>
-
-    <!-- MAIN APP CONTAINER -->
     <div class="container">
         <header class="no-print">
             <h1>SPRINGFIELD GYM</h1>
             <div class="active-user-badge">Desk Active: <span id="currentUserLabel">None</span></div>
         </header>
 
-        <!-- AUDIT SUMMARY MANAGEMENT CARDS -->
+        <!-- FINANCIAL METRICS -->
         <div id="auditSummaryDeck" class="audit-summary-deck">
             <div class="summary-card">
                 <div class="card-title">Total Cash Collected</div>
@@ -37,12 +37,12 @@
                 <div class="card-value" id="totalMpesaSum">Ksh 0</div>
             </div>
             <div class="summary-card alert-card">
-                <div class="card-title">Total Unpaid Balance (Debt)</div>
+                <div class="card-title">Total Outstanding Debt</div>
                 <div class="card-value" id="totalDebtSum">Ksh 0</div>
             </div>
         </div>
 
-        <!-- PRINT CONFIGURATION & PROFILE PICTURE SETUP -->
+        <!-- PROFILE AND CONFIGURATION PANELS -->
         <div class="control-row no-print">
             <div class="panel profile-panel">
                 <h3>Staff Profile Picture</h3>
@@ -53,7 +53,7 @@
                     <div>
                         <label class="btn-upload-label" for="dpUploadInput">Upload New DP</label>
                         <input type="file" id="dpUploadInput" accept="image/*" style="display: none;" onchange="handleDpUpload(event)">
-                        <small style="display: block; color: var(--text-muted); margin-top: 4px;">Visible to everyone online</small>
+                        <small style="display: block; color: var(--text-muted); margin-top: 4px;">Changes apply instantly to all devices</small>
                     </div>
                 </div>
             </div>
@@ -67,10 +67,8 @@
             </div>
         </div>
 
-        <!-- TWO COLUMN WORKSPACE GRID -->
+        <!-- WORKSPACE GRID -->
         <div class="main-grid">
-            
-            <!-- LEFT PANEL: REGISTRATION CONTROL LOGBOOK -->
             <div class="panel no-print" id="inputFormPanel">
                 <h3>Log Book Entry</h3>
                 <form id="logForm">
@@ -104,7 +102,6 @@
                         </select>
                     </div>
                     
-                    <!-- MPESA DESK TILL INFORMATIONAL BANNER -->
                     <div class="till-banner">
                         LIPA NA M-PESA TILL: <strong>597593</strong>
                         <br><span class="till-sub">Account: Springfield Gym 1</span>
@@ -137,25 +134,23 @@
                         <label>Date Paid</label>
                         <input type="date" id="datePaid" required>
                     </div>
-                    <button type="submit" class="btn-submit">Save To Log Book</button>
+                    <button type="submit" class="btn-submit">Save To Cloud Book</button>
                 </form>
             </div>
 
-            <!-- RIGHT PANEL: CENTRAL LEDGER DATA VIEW -->
             <div class="panel" id="ledgerPanel">
                 <div class="panel-header no-print">
                     <h3 onclick="toggleLedgerVisibility()" style="cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%;">
                         <span id="ledgerToggleArrow">▶</span> Digital Book Ledger 
-                        <small style="color: var(--text-muted); text-transform: none; font-weight: normal; margin-left: auto;">(Click to Show/Hide)</small>
+                        <small style="color: var(--text-muted); text-transform: none; font-weight: normal; margin-left: auto;">(Click to Expand)</small>
                     </h3>
-                    
                     <div class="audit-controls hidden" id="ledgerAuditButtons">
                         <button class="btn-print-audit btn-day" onclick="printDailyAudit()">Print Daily Summary</button>
                         <button class="btn-print-audit btn-month" onclick="printMonthlyAudit()">Print Full Month</button>
                     </div>
                 </div>
 
-                <!-- DYNAMIC PRINT HEADER FOR PHYSICAL PAPERS -->
+                <!-- HARDWARE PRINT BANNER DETAILS -->
                 <div class="print-only-header" id="printReportHeader">
                     <h2>SPRINGFIELD GYM - AUDIT SHEET</h2>
                     <p>Report Framework Generated On: <span id="livePrintTimestamp"></span></p>
@@ -166,7 +161,7 @@
                         <thead>
                             <tr>
                                 <th>Member & Staff Info</th>
-                                <th>Plan / System Type</th>
+                                <th>Plan Details</th>
                                 <th>Financials</th>
                                 <th>Method / Code</th>
                                 <th>Date Paid</th>
@@ -174,17 +169,13 @@
                                 <th class="no-print">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="logTableBody">
-                            <!-- Rows populated dynamically by app.js -->
-                        </tbody>
+                        <tbody id="logTableBody"></tbody>
                     </table>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <!-- ENGINE SCRIPTS -->
     <script src="app.js"></script>
 </body>
 </html>
