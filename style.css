@@ -507,3 +507,35 @@ body.hide-print-totals .audit-summary-deck {
         display: block !important;
     }
 }
+.btn-edit-row {
+    background-color: #ffc107;
+    color: #111111;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    margin-right: 4px;
+}
+
+.btn-delete-row {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    margin-right: 4px;
+}
+
+.table-number {
+    font-weight: bold;
+    color: var(--primary);
+    font-family: monospace;
+    font-size: 1rem;
+}
