@@ -3,79 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Springfield Gym - Cloud System</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Springfield Gym - Shared System</title>
     <script src="https://jsdelivr.net"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-box">
-            <h2>SPRINGFIELD GYM</h2>
-            <p class="login-sub">Select your identity to access the log book:</p>
-            <button class="user-select-btn" onclick="authenticateStaffGate('Shedy (Owner)')">Shedy (Owner)</button>
-            <button class="user-select-btn" onclick="authenticateStaffGate('Vincent')">Vincent</button>
-            <button class="user-select-btn" onclick="authenticateStaffGate('Kevoh')">Kevoh</button>
-        </div>
-    </div>
-
     <div class="container">
-        <header class="no-print">
+        <header>
             <h1>SPRINGFIELD GYM</h1>
-            <div class="active-user-badge">Desk Active: <span id="currentUserLabel">None</span></div>
+            <div class="active-user-badge">System Active</div>
         </header>
 
-        <div id="auditSummaryDeck" class="audit-summary-deck">
+        <div class="audit-summary-deck">
             <div class="summary-card">
                 <div class="card-title">Total Cash Collected</div>
-                <div class="card-value" id="totalCashSum">Ksh 0</div>
+                <div id="totalCashSum" class="card-value">Ksh 0</div>
             </div>
             <div class="summary-card">
                 <div class="card-title">Total M-Pesa Collected</div>
-                <div class="card-value" id="totalMpesaSum">Ksh 0</div>
+                <div id="totalMpesaSum" class="card-value">Ksh 0</div>
             </div>
             <div class="summary-card alert-card">
                 <div class="card-title">Total Outstanding Debt</div>
-                <div class="card-value" id="totalDebtSum">Ksh 0</div>
-            </div>
-        </div>
-
-        <div class="control-row no-print">
-            <div class="panel profile-panel">
-                <h3>Staff Profile Picture</h3>
-                <div class="profile-flex">
-                    <div class="avatar-container">
-                        <img id="staffAvatarPreview" src="https://placeholder.com" alt="DP">
-                    </div>
-                    <div>
-                        <label class="btn-upload-label" for="dpUploadInput">Upload New DP</label>
-                        <input type="file" id="dpUploadInput" accept="image/*" style="display: none;" onchange="handleDpUpload(event)">
-                        <small style="display: block; color: var(--text-muted); margin-top: 4px;">Visible to everyone online</small>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="panel option-panel">
-                <h3>Print Configuration</h3>
-                <label class="checkbox-container">
-                    <input type="checkbox" id="includeTotalsCheckbox" checked>
-                    <span>Include Total Financial Summaries on Printsheets</span>
-                </label>
+                <div id="totalDebtSum" class="card-value">Ksh 0</div>
             </div>
         </div>
 
         <div class="main-grid">
-            <div class="panel no-print" id="inputFormPanel">
+            <div id="inputFormPanel" class="panel">
                 <h3 id="formPanelHeading">Log Book Entry</h3>
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 15px 0;">
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="includeTotalsCheckbox" checked onchange="evaluateFinancialPrintState()">
+                        Include Total Financial Summaries on Printsheets
+                    </label>
+                </div>
+
                 <form id="logForm">
                     <input type="hidden" id="editEntryId" value="">
+                    
                     <div class="form-group">
                         <label>Member Full Name</label>
-                        <input type="text" id="memberName" required placeholder="e.g. John Omondi">
+                        <input type="text" id="memberName" required placeholder="e.g. John Doe">
                     </div>
                     <div class="form-group">
                         <label>Phone Number (Optional)</label>
-                        <input type="text" id="phoneNo" placeholder="e.g. 07XXXXXXXX (Can be blank)">
+                        <input type="tel" id="phoneNo" placeholder="e.g. 0712345678">
                     </div>
                     <div class="form-group">
                         <label>Gender</label>
@@ -98,10 +74,10 @@
                             <option value="Monthly">Monthly Subscription</option>
                         </select>
                     </div>
-                    
+
                     <div class="till-banner">
-                        LIPA NA M-PESA TILL: <strong>597593</strong>
-                        <br><span class="till-sub">Account: Springfield Gym 1</span>
+                        LIPA NA M-PESA TILL: <strong style="color: var(--primary);">597593</strong><br>
+                        <span class="till-sub">Account: Springfield Gym 1</span>
                     </div>
 
                     <div class="form-group">
@@ -111,54 +87,52 @@
                             <option value="M-Pesa">M-Pesa</option>
                         </select>
                     </div>
-                    <div class="form-group hidden" id="mpesaCodeGroup">
+                    <div id="mpesaCodeGroup" class="form-group hidden">
                         <label>M-Pesa Transaction Code</label>
-                        <input type="text" id="mpesaCode" placeholder="e.g. QKX7..." style="text-transform: uppercase;">
+                        <input type="text" id="mpesaCode" placeholder="XYZ1234567" style="text-transform: uppercase;">
                     </div>
                     <div class="form-group">
                         <label>Total Fee Due (Ksh)</label>
-                        <input type="number" id="totalDue" readonly class="readonly-box">
+                        <input type="number" id="totalDue" class="readonly-box" readonly>
                     </div>
                     <div class="form-group">
                         <label>Amount Paid (Ksh)</label>
-                        <input type="number" id="amountPaid" required placeholder="Ksh" oninput="calculateBalance()">
+                        <input type="number" id="amountPaid" required min="0" oninput="calculateBalance()" placeholder="0">
                     </div>
                     <div class="form-group">
                         <label>Remaining Balance / Debt (Ksh)</label>
-                        <input type="number" id="remainingBalance" readonly class="readonly-box">
+                        <input type="number" id="remainingBalance" class="readonly-box" readonly>
                     </div>
                     <div class="form-group">
                         <label>Date Paid</label>
                         <input type="date" id="datePaid" required>
                     </div>
-                    <button type="submit" class="btn-submit" id="btnSubmitForm">Save To Cloud Book</button>
-                    <button type="button" class="btn-submit hidden" id="btnCancelEdit" onclick="cancelEditingSession()" style="background-color:#555; margin-top: 8px;">Cancel Edit</button>
+
+                    <button type="submit" id="btnSubmitForm" class="btn-submit">Save To Cloud Book</button>
+                    <button type="button" id="btnCancelEdit" class="btn-submit btn-day hidden" style="margin-top: 8px;" onclick="cancelEditingSession()">Cancel Edit</button>
                 </form>
             </div>
 
-            <div class="panel" id="ledgerPanel">
-                <div class="panel-header no-print">
-                    <h3 onclick="toggleLedgerVisibility()" style="cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%;">
-                        <span id="ledgerToggleArrow">▶</span> Digital Book Ledger 
-                        <small style="color: var(--text-muted); text-transform: none; font-weight: normal; margin-left: auto;">(Click to Expand)</small>
-                    </h3>
-                    <div class="audit-controls hidden" id="ledgerAuditButtons">
+            <div class="panel" style="overflow: hidden;">
+                <div class="panel-header" id="ledgerToggleHeading">
+                    <h3><span id="ledgerToggleArrow">▶</span> Digital Book Ledger (Click to Expand)</h3>
+                    <div id="ledgerAuditButtons" class="audit-controls hidden no-print">
                         <button class="btn-print-audit btn-day" onclick="printDailyAudit()">Print Daily Summary</button>
                         <button class="btn-print-audit btn-month" onclick="printMonthlyAudit()">Print Full Month</button>
                     </div>
                 </div>
 
-                <div class="print-only-header" id="printReportHeader">
+                <div id="printReportHeader" class="print-only-header">
                     <h2>SPRINGFIELD GYM - AUDIT SHEET</h2>
                     <p>Report Framework Generated On: <span id="livePrintTimestamp"></span></p>
                 </div>
 
-                <div class="table-wrapper hidden" id="ledgerTableWrapper">
+                <div id="ledgerTableWrapper" class="table-wrapper hidden">
                     <table>
                         <thead>
                             <tr>
                                 <th>No.</th>
-                                <th>Member & Staff Info</th>
+                                <th>Member Info</th>
                                 <th>Plan Details</th>
                                 <th>Financials</th>
                                 <th>Method / Code</th>
@@ -167,7 +141,8 @@
                                 <th class="no-print">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="logTableBody"></tbody>
+                        <tbody id="logTableBody">
+                        </tbody>
                     </table>
                 </div>
             </div>
