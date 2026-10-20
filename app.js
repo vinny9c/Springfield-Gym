@@ -1,315 +1,120 @@
 const SUPABASE_URL = "https://eaqzjeexeduceevexmmb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Uh7k-VG0YDuMxcvLbZmbog_006UtmzW";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let currentStaffUser = "";
-let gymRegistryBook = [];
-let staffAvatars = {};
-let activePrintMode = "All";
-let targetPrintDate = "";
+let currentStaffUser = "", gymRegistryBook = [], activePrintMode = "All", targetPrintDate = "";
+let staffAvatars = { "Shedy (Owner)": "https://placeholder.com", "Vincent": "https://placeholder.com", "Kevoh": "https://placeholder.com" };
 
 function authenticateStaffGate(user) {
-    const password = prompt("Enter PIN code for " + user + ":");
-    if (password === "5555") {
-        selectUser(user);
-    } else {
-        alert("Incorrect PIN access denied.");
-    }
+    if (prompt("Enter PIN code for " + user + ":") === "5555") { selectUser(user); } 
+    else { alert("Incorrect PIN access denied."); }
 }
-
 async function selectUser(user) {
     currentStaffUser = user;
     document.getElementById('currentUserLabel').innerText = user;
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
-    
     await downloadCloudData();
     calculateAutoPrice();
 }
-
 async function downloadCloudData() {
-    let { data: dps, error: err1 } = await supabaseClient.from('springfield_gym_dps').select('*');
-    if (!err1 && dps) {
-        dps.forEach(d => { staffAvatars[d.staff_name] = d.avatar_base64; });
-    }
-    if (staffAvatars[currentStaffUser]) {
-        document.getElementById('staffAvatarPreview').src = staffAvatars[currentStaffUser];
-    }
-    let { data: book, error: err2 } = await supabaseClient.from('springfield_gym_book').select('*').order('created_at', { ascending: false });
-    if (!err2 && book) {
-        gymRegistryBook = book;
-    }
-    renderLogBook();
+    let { data: dps } = await supabaseClient.from('springfield_gym_dps').select('*');
+    if (dps) dps.forEach(d => { staffAvatars[d.staff_name] = d.avatar_base64; });
+    document.getElementById('staffAvatarPreview').src = staffAvatars[currentStaffUser];
+    let { data: book } = await supabaseClient.from('springfield_gym_book').select('*').order('created_at', { ascending: false });
+    if (book) gymRegistryBook = book;
+    await renderLogBook();
 }
-
-async function handleDpUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = async function() {
-        const base64String = reader.result;
-        const { error } = await supabaseClient.from('springfield_gym_dps').upsert({ staff_name: currentStaffUser, avatar_base64: base64String });
-        if (!error) {
-            staffAvatars[currentStaffUser] = base64String;
-            document.getElementById('staffAvatarPreview').src = base64String;
-            renderLogBook();
-        } else {
-            alert("Database upload failed.");
-        }
-    };
-    reader.readAsDataURL(file);
+async function handleDpUpload(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const r = new FileReader(); r.onloadend = async function() {
+        const b64 = r.result;
+        const { error } = await supabaseClient.from('springfield_gym_dps').upsert({ staff_name: currentStaffUser, avatar_base64: b64 });
+        if (!error) { staffAvatars[currentStaffUser] = b64; document.getElementById('staffAvatarPreview').src = b64; await renderLogBook(); }
+    }; r.readAsDataURL(file);
 }
-
 function calculateAutoPrice() {
-    const gender = document.getElementById('gender').value;
-    const trainer = document.getElementById('trainerOpt').value;
-    const plan = document.getElementById('paymentPlan').value;
-    let price = 0;
-    if (trainer === "With Trainer") {
-        if (plan === "Session") { price = 100; } 
-        else { price = (gender === "Male") ? 1000 : 1200; }
-    } else {
-        if (plan === "Session") { price = 50; } 
-        else { price = 600; }
-    }
-    document.getElementById('totalDue').value = price;
-    calculateBalance();
+    const g = document.getElementById('gender').value, t = document.getElementById('trainerOpt').value, p = document.getElementById('paymentPlan').value;
+    let price = (t === "With Trainer") ? ((p === "Session") ? 100 : (g === "Male" ? 1000 : 1200)) : ((p === "Session") ? 50 : 600);
+    document.getElementById('totalDue').value = price; calculateBalance();
 }
-
 function calculateBalance() {
-    const total = Number(document.getElementById('totalDue').value) || 0;
-    const paid = Number(document.getElementById('amountPaid').value) || 0;
-    document.getElementById('remainingBalance').value = total - paid;
+    document.getElementById('remainingBalance').value = (Number(document.getElementById('totalDue').value) || 0) - (Number(document.getElementById('amountPaid').value) || 0);
 }
-
 function toggleMpesaField() {
-    const method = document.getElementById('payMethod').value;
-    const mpesaGroup = document.getElementById('mpesaCodeGroup');
-    if (method === "M-Pesa") { mpesaGroup.classList.remove('hidden'); } 
-    else {
-        mpesaGroup.classList.add('hidden');
-        document.getElementById('mpesaCode').value = '';
-    }
+    const m = document.getElementById('payMethod').value, g = document.getElementById('mpesaCodeGroup');
+    if (m === "M-Pesa") g.classList.remove('hidden'); else { g.classList.add('hidden'); document.getElementById('mpesaCode').value = ''; }
 }
-
 function toggleLedgerVisibility() {
-    const wrapper = document.getElementById('ledgerTableWrapper');
-    const buttons = document.getElementById('ledgerAuditButtons');
-    const arrow = document.getElementById('ledgerToggleArrow');
-    if (wrapper.classList.contains('hidden')) {
-        wrapper.classList.remove('hidden');
-        buttons.classList.remove('hidden');
-        arrow.classList.add('rotated');
-    } else {
-        wrapper.classList.add('hidden');
-        buttons.classList.add('hidden');
-        arrow.classList.remove('rotated');
-    }
+    const w = document.getElementById('ledgerTableWrapper'), b = document.getElementById('ledgerAuditButtons'), a = document.getElementById('ledgerToggleArrow');
+    if (w.classList.contains('hidden')) { w.classList.remove('hidden'); b.classList.remove('hidden'); a.classList.add('rotated'); } 
+    else { w.classList.add('hidden'); b.classList.add('hidden'); a.classList.remove('rotated'); }
 }
-function renderLogBook() {
-    const tbody = document.getElementById('logTableBody');
-    tbody.innerHTML = '';
-    
-    let cashSum = 0, mpesaSum = 0, debtSum = 0;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    let displayIndex = 1;
+async function renderLogBook() {
+    const tbody = document.getElementById('logTableBody'); tbody.innerHTML = '';
+    let cash = 0, mpesa = 0, debt = 0, idx = 1;
+    const today = new Date(); today.setHours(0,0,0,0);
     gymRegistryBook.forEach(entry => {
         if (activePrintMode === "Daily" && entry.date !== targetPrintDate) return;
         if (activePrintMode === "Monthly" && entry.date.substring(0, 7) !== targetPrintDate.substring(0, 7)) return;
-
-        cashSum += (entry.method === "Cash") ? Number(entry.paid) : 0;
-        mpesaSum += (entry.method === "M-Pesa") ? Number(entry.paid) : 0;
-        debtSum += Number(entry.balance);
-
-        const tr = document.createElement('tr');
-        const planBadge = entry.plan === 'Session' ? 'badge-session' : 'badge-monthly';
-        let renewalMarkup = "";
-
-        if (entry.plan === "Session") {
-            renewalMarkup = `<span class="badge badge-active">Session Pass</span>`;
-        } else {
-            const entryDateObj = new Date(entry.date);
-            const expiryDate = new Date(entryDateObj);
-            expiryDate.setDate(expiryDate.getDate() + 30);
-            const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-            renewalMarkup = daysLeft < 0 ? `<span class="badge badge-expired">Expired</span> <span class="text-action-required">Add Money</span>` : `<span class="badge badge-active">Active</span> <small style="display:block;color:var(--text-muted);margin-top:2px;">${daysLeft} Days Left</small>`;
+        cash += (entry.method === "Cash") ? Number(entry.paid) : 0; mpesa += (entry.method === "M-Pesa") ? Number(entry.paid) : 0; debt += Number(entry.balance);
+        let ren = "";
+        if (entry.plan === "Session") { ren = `<span class="badge badge-active">Session Pass</span>`; } 
+        else {
+            const exp = new Date(entry.date); exp.setDate(exp.getDate() + 30);
+            const diff = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+            ren = diff < 0 ? `<span class="badge badge-expired">Expired</span><span class="text-action-required">Add Money</span>` : `<span class="badge badge-active">Active</span><small style="display:block;color:var(--text-muted);">${diff} Days Left</small>`;
         }
-
-        const mpesaInfo = entry.method === "M-Pesa" ? `M-Pesa<small style="display:block;color:var(--text-muted);text-transform:uppercase;">${entry.code || 'NO CODE'}</small>` : 'Cash';
-        const phoneDisplay = entry.phone ? entry.phone : '<span style="color:var(--text-muted);font-style:italic;">None</span>';
-        const creatorDp = staffAvatars[entry.staff] || "https://placeholder.com";
-
-        tr.innerHTML = `
-            <td class="table-number">${displayIndex}</td>
-            <td>
-                <div style="display:flex; align-items:center;">
-                    <img class="table-avatar" src="${creatorDp}" alt="DP" style="width:32px; height:32px; border-radius:50%; margin-right:8px; object-fit:cover;">
-                    <div>
-                        <strong>${entry.name}</strong>
-                        <small style="display:block;color:var(--text-muted);margin-top:2px;">Phone: ${phoneDisplay}</small>
-                        <span class="logged-by-text" style="display:block; font-size:0.75rem; color:var(--text-muted);">Logged by: ${entry.staff}</span>
-                    </div>
-                </div>
-            </td>
-            <td><span class="badge ${planBadge}">${entry.plan}</span><small style="display:block;color:var(--text-muted);margin-top:2px;">${entry.trainer}</small></td>
-            <td>Due: ${entry.total}<br>Paid: <strong>${entry.paid}</strong><br><span style="${Number(entry.balance) > 0 ? 'color:var(--primary);font-weight:bold;' : ''}">Bal: ${entry.balance}</span></td>
-            <td>${mpesaInfo}</td>
-            <td>${entry.date}</td>
-            <td>${renewalMarkup}</td>
-            <td class="no-print">
-                <button class="btn-edit-row" onclick="startEditingSession(${entry.id})">Edit</button>
-                <button class="btn-delete-row" onclick="deleteRegistryRow(${entry.id})">Delete</button>
-                <button class="btn-print-row" onclick="printSingleReceipt('${entry.name}', '${entry.date}', ${entry.id})">Receipt</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-        displayIndex++;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="table-number">${idx}</td><td><div style="display:flex;align-items:center;"><img class="table-avatar" src="${staffAvatars[entry.staff]||'https://placeholder.com'}" style="width:32px;height:32px;border-radius:50%;margin-right:8px;object-fit:cover;"><div><strong>${entry.name}</strong><small style="display:block;color:var(--text-muted);">Phone: ${entry.phone||'None'}</small><span class="logged-by-text">Logged by: ${entry.staff}</span></div></div></td><td><span class="badge ${entry.plan==='Session'?'badge-session':'badge-monthly'}">${entry.plan}</span><small style="display:block;color:var(--text-muted);">${entry.trainer}</small></td><td>Due: ${entry.total}<br>Paid: <strong>${entry.paid}</strong><br><span style="${Number(entry.balance)>0?'color:var(--primary);font-weight:bold;':''}">Bal: ${entry.balance}</span></td><td>${entry.method==='M-Pesa'?`M-Pesa<small style="display:block;color:var(--text-muted);">\${entry.code||'NO CODE'}</small>`:'Cash'}</td><td>${entry.date}</td><td>${ren}</td><td class="no-print"><button class="btn-edit-row" onclick="startEditingSession(${entry.id})">Edit</button><button class="btn-delete-row" onclick="deleteRegistryRow(${entry.id})">Delete</button><button class="btn-print-row" onclick="printSingleReceipt('${entry.name}','${entry.date}',${entry.id})">Receipt</button></td>`;
+        tbody.appendChild(tr); idx++;
     });
-
-    document.getElementById('totalCashSum').innerText = `Ksh ${cashSum.toLocaleString()}`;
-    document.getElementById('totalMpesaSum').innerText = `Ksh ${mpesaSum.toLocaleString()}`;
-    document.getElementById('totalDebtSum').innerText = `Ksh ${debtSum.toLocaleString()}`;
+    document.getElementById('totalCashSum').innerText = `Ksh ${cash.toLocaleString()}`; document.getElementById('totalMpesaSum').innerText = `Ksh ${mpesa.toLocaleString()}`; document.getElementById('totalDebtSum').innerText = `Ksh ${debt.toLocaleString()}`;
 }
-
 document.getElementById('logForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const editId = document.getElementById('editEntryId').value;
-    
-    const entryData = {
-        name: document.getElementById('memberName').value.trim(),
-        phone: document.getElementById('phoneNo').value.trim(),
-        gender: document.getElementById('gender').value,
-        trainer: document.getElementById('trainerOpt').value,
-        plan: document.getElementById('paymentPlan').value,
-        method: document.getElementById('payMethod').value,
-        code: document.getElementById('mpesaCode').value.trim(),
-        total: Number(document.getElementById('totalDue').value),
-        paid: Number(document.getElementById('amountPaid').value),
-        balance: Number(document.getElementById('remainingBalance').value),
-        date: document.getElementById('datePaid').value,
-        staff: currentStaffUser
-    };
-
-    if (editId) {
-        const { error } = await supabaseClient.from('springfield_gym_book').update(entryData).eq('id', editId);
-        if (!error) { alert("Entry updated successfully."); cancelEditingSession(); } 
-        else { alert("Cloud update operation failed."); }
-    } else {
-        const { error } = await supabaseClient.from('springfield_gym_book').insert([entryData]);
-        if (!error) {
-            document.getElementById('memberName').value = '';
-            document.getElementById('phoneNo').value = '';
-            document.getElementById('mpesaCode').value = '';
-            document.getElementById('amountPaid').value = '';
-        } else { alert("Failed to sync entry to cloud."); }
-    }
-    calculateAutoPrice();
-    await downloadCloudData();
+    e.preventDefault(); const editId = document.getElementById('editEntryId').value;
+    const entryData = { name: document.getElementById('memberName').value.trim(), phone: document.getElementById('phoneNo').value.trim(), gender: document.getElementById('gender').value, trainer: document.getElementById('trainerOpt').value, plan: document.getElementById('paymentPlan').value, method: document.getElementById('payMethod').value, code: document.getElementById('mpesaCode').value.trim(), total: Number(document.getElementById('totalDue').value), paid: Number(document.getElementById('amountPaid').value), balance: Number(document.getElementById('remainingBalance').value), date: document.getElementById('datePaid').value, staff: currentStaffUser };
+    if (editId) { await supabaseClient.from('springfield_gym_book').update(entryData).eq('id', editId); cancelEditingSession(); } 
+    else { await supabaseClient.from('springfield_gym_book').insert([entryData]); document.getElementById('memberName').value = ''; document.getElementById('phoneNo').value = ''; document.getElementById('mpesaCode').value = ''; document.getElementById('amountPaid').value = ''; }
+    calculateAutoPrice(); await downloadCloudData();
 });
+
 function startEditingSession(id) {
-    const target = gymRegistryBook.find(r => r.id === id);
-    if (!target) return;
-
-    document.getElementById('editEntryId').value = target.id;
-    document.getElementById('memberName').value = target.name;
-    document.getElementById('phoneNo').value = target.phone;
-    document.getElementById('gender').value = target.gender;
-    document.getElementById('trainerOpt').value = target.trainer;
-    document.getElementById('paymentPlan').value = target.plan;
-    document.getElementById('payMethod').value = target.method;
-    toggleMpesaField();
-    document.getElementById('mpesaCode').value = target.code;
-    document.getElementById('totalDue').value = target.total;
-    document.getElementById('amountPaid').value = target.paid;
-    document.getElementById('remainingBalance').value = target.balance;
-    document.getElementById('datePaid').value = target.date;
-
-    document.getElementById('formPanelHeading').innerText = "Update Member Record";
-    document.getElementById('btnSubmitForm').innerText = "Apply Changes";
-    document.getElementById('btnCancelEdit').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const t = gymRegistryBook.find(r => r.id === id); if (!t) return;
+    document.getElementById('editEntryId').value = t.id; document.getElementById('memberName').value = t.name; document.getElementById('phoneNo').value = t.phone; document.getElementById('gender').value = t.gender; document.getElementById('trainerOpt').value = t.trainer; document.getElementById('paymentPlan').value = t.plan; document.getElementById('payMethod').value = t.method; toggleMpesaField(); document.getElementById('mpesaCode').value = t.code; document.getElementById('totalDue').value = t.total; document.getElementById('amountPaid').value = t.paid; document.getElementById('remainingBalance').value = t.balance; document.getElementById('datePaid').value = t.date;
+    document.getElementById('formPanelHeading').innerText = "Update Member Record"; document.getElementById('btnSubmitForm').innerText = "Apply Changes"; document.getElementById('btnCancelEdit').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
 function cancelEditingSession() {
-    document.getElementById('editEntryId').value = "";
-    document.getElementById('logForm').reset();
-    document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
-    document.getElementById('formPanelHeading').innerText = "Log Book Entry";
-    document.getElementById('btnSubmitForm').innerText = "Save To Cloud Book";
-    document.getElementById('btnCancelEdit').classList.add('hidden');
-    calculateAutoPrice();
+    document.getElementById('editEntryId').value = ""; document.getElementById('logForm').reset(); document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
+    document.getElementById('formPanelHeading').innerText = "Log Book Entry"; document.getElementById('btnSubmitForm').innerText = "Save To Cloud Book"; document.getElementById('btnCancelEdit').classList.add('hidden'); calculateAutoPrice();
 }
-
 async function deleteRegistryRow(id) {
-    if (confirm("Are you sure you want to permanently delete this member record?")) {
-        const { error } = await supabaseClient.from('springfield_gym_book').delete().eq('id', id);
-        if (!error) { await downloadCloudData(); } 
-        else { alert("Failed to clear entry from data storage."); }
-    }
+    if (confirm("Are you sure you want to permanently delete this member record?")) { await supabaseClient.from('springfield_gym_book').delete().eq('id', id); await downloadCloudData(); }
 }
-
 function evaluateFinancialPrintState() {
-    const includeTotals = document.getElementById('includeTotalsCheckbox').checked;
-    if (!includeTotals) { document.body.classList.add('hide-print-totals'); } 
-    else { document.body.classList.remove('hide-print-totals'); }
+    if (!document.getElementById('includeTotalsCheckbox').checked) document.body.classList.add('hide-print-totals'); else document.body.classList.remove('hide-print-totals');
 }
-
-function printSingleReceipt(memberName, datePaid, id) {
-    const match = gymRegistryBook.find(r => r.id === id);
-    if (!match) return;
-    evaluateFinancialPrintState();
-    document.title = "Receipt_" + memberName.replace(/\s+/g, '_') + "_" + datePaid;
-    document.getElementById('printReportHeader').innerHTML = `<h2>SPRINGFIELD GYM - RECEIPT FOR ${memberName.toUpperCase()}</h2><p>Issued By: ${match.staff} | Payment Date: ${datePaid} | Print Run: ${new Date().toLocaleDateString()}</p>`;
-    const originalMode = activePrintMode, originalList = gymRegistryBook;
-    gymRegistryBook = [match]; activePrintMode = "All"; renderLogBook();
-    const wrapper = document.getElementById('ledgerTableWrapper');
-    const wasHidden = wrapper.classList.contains('hidden');
-    if (wasHidden) wrapper.classList.remove('hidden');
-    document.getElementById('inputFormPanel').classList.add('hidden');
-    window.print();
-    if (wasHidden) wrapper.classList.add('hidden');
-    document.getElementById('inputFormPanel').classList.remove('hidden');
+function printSingleReceipt(n, d, id) {
+    const match = gymRegistryBook.find(r => r.id === id); if (!match) return;
+    evaluateFinancialPrintState(); document.title = "Receipt_" + n.replace(/\s+/g, '_') + "_" + d;
+    document.getElementById('printReportHeader').innerHTML = `<h2>SPRINGFIELD GYM - RECEIPT FOR ${n.toUpperCase()}</h2><p>Issued By: ${match.staff} | Payment Date: ${d} | Print Run: ${new Date().toLocaleDateString()}</p>`;
+    const origM = activePrintMode, origL = gymRegistryBook; gymRegistryBook = [match]; activePrintMode = "All"; renderLogBook();
+    const w = document.getElementById('ledgerTableWrapper'); const hidden = w.classList.contains('hidden'); if (hidden) w.classList.remove('hidden');
+    document.getElementById('inputFormPanel').classList.add('hidden'); window.print();
+    if (hidden) w.classList.add('hidden'); document.getElementById('inputFormPanel').classList.remove('hidden');
     document.getElementById('printReportHeader').innerHTML = `<h2>SPRINGFIELD GYM - AUDIT SHEET</h2><p>Report Framework Generated On: <span id="livePrintTimestamp"></span></p>`;
-    document.title = "Springfield Gym - Shared System";
-    gymRegistryBook = originalList; activePrintMode = originalMode; renderLogBook();
-    document.body.classList.remove('hide-print-totals');
+    document.title = "Springfield Gym - Shared System"; gymRegistryBook = origL; activePrintMode = origM; renderLogBook(); document.body.classList.remove('hide-print-totals');
 }
-
 function printDailyAudit() {
-    const selectedDate = document.getElementById('datePaid').value;
-    if (!selectedDate) return alert("Select a date in the form input box first.");
-    evaluateFinancialPrintState();
-    document.title = "Daily_Audit_" + selectedDate;
-    activePrintMode = "Daily"; targetPrintDate = selectedDate;
-    document.getElementById('livePrintTimestamp').innerText = selectedDate;
-    const wrapper = document.getElementById('ledgerTableWrapper');
-    const wasHidden = wrapper.classList.contains('hidden');
-    if (wasHidden) wrapper.classList.remove('hidden');
-    renderLogBook(); window.print();
-    if (wasHidden) wrapper.classList.add('hidden');
-    activePrintMode = "All"; renderLogBook();
-    document.body.classList.remove('hide-print-totals');
-    document.title = "Springfield Gym - Shared System";
+    const sd = document.getElementById('datePaid').value; if (!sd) return alert("Select a date in the form input box first.");
+    evaluateFinancialPrintState(); document.title = "Daily_Audit_" + sd; activePrintMode = "Daily"; targetPrintDate = sd; document.getElementById('livePrintTimestamp').innerText = sd;
+    const w = document.getElementById('ledgerTableWrapper'); const hidden = w.classList.contains('hidden'); if (hidden) w.classList.remove('hidden');
+    renderLogBook(); window.print(); if (hidden) w.classList.add('hidden'); activePrintMode = "All"; renderLogBook(); document.body.classList.remove('hide-print-totals'); document.title = "Springfield Gym - Shared System";
 }
-
 function printMonthlyAudit() {
-    const selectedDate = document.getElementById('datePaid').value;
-    if (!selectedDate) return alert("Select a date within the target month first.");
-    evaluateFinancialPrintState();
-    const yearMonth = selectedDate.substring(0, 7);
-    document.title = "Monthly_Audit_" + yearMonth;
-    activePrintMode = "Monthly"; targetPrintDate = selectedDate;
-    document.getElementById('livePrintTimestamp').innerText = "Month View: " + yearMonth;
-    const wrapper = document.getElementById('ledgerTableWrapper');
-    const wasHidden = wrapper.classList.contains('hidden');
-    if (wasHidden) wrapper.classList.remove('hidden');
-    renderLogBook(); window.print();
-    if (wasHidden) wrapper.classList.add('hidden');
-    activePrintMode = "All"; renderLogBook();
-    document.body.classList.remove('hide-print-totals');
-    document.title = "Springfield Gym - Shared System";
+    const sd = document.getElementById('datePaid').value; if (!sd) return alert("Select a date within the target month first.");
+    evaluateFinancialPrintState(); const ym = sd.substring(0, 7); document.title = "Monthly_Audit_" + ym; activePrintMode = "Monthly"; targetPrintDate = sd; document.getElementById('livePrintTimestamp').innerText = "Month View: " + ym;
+    const w = document.getElementById('ledgerTableWrapper'); const hidden = w.classList.contains('hidden'); if (hidden) w.classList.remove('hidden');
+    renderLogBook(); window.print(); if (hidden) w.classList.add('hidden'); activePrintMode = "All"; renderLogBook(); document.body.classList.remove('hide-print-totals'); document.title = "Springfield Gym - Shared System";
 }
 
 renderLogBook();
