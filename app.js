@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://eaqzjeexeduceevexmmb.supabase.co";
+const SUPABASE_URL = "https://eaqzjeexeduceevexmmb.supabacose.";
 const SUPABASE_KEY = "sb_publishable_Uh7k-VG0YDuMxcvLbZmbog_006UtmzW";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -7,6 +7,21 @@ let gymRegistryBook = [];
 let staffAvatars = {};
 let activePrintMode = "All";
 let targetPrintDate = "";
+
+// Automatically handle calendar transitions if system is left open overnight
+function listenForNewDay() {
+    setInterval(() => {
+        const dateInput = document.getElementById('datePaid');
+        if (dateInput) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (dateInput.value !== todayStr) {
+                dateInput.value = todayStr;
+                downloadCloudData(); 
+            }
+        }
+    }, 60000); // Polls every 60 seconds
+}
+listenForNewDay();
 
 async function selectUser(user) {
     currentStaffUser = user;
@@ -19,6 +34,7 @@ async function selectUser(user) {
 }
 
 async function downloadCloudData() {
+    // 1. Download staff avatar data as usual
     let { data: dps, error: err1 } = await supabaseClient.from('springfield_gym_dps').select('*');
     if (!err1 && dps) {
         dps.forEach(d => { staffAvatars[d.staff_name] = d.avatar_base64; });
@@ -28,9 +44,34 @@ async function downloadCloudData() {
         document.getElementById('staffAvatarPreview').src = staffAvatars[currentStaffUser];
     }
 
-    let { data: book, error: err2 } = await supabaseClient.from('springfield_gym_book').select('*').order('created_at', { ascending: false });
+    // 2. Compute date windows for active rolling monthly validation (Exactly 30 Days)
+    const selectedDate = document.getElementById('datePaid').value || new Date().toISOString().split('T')[0];
+    const targetDateObj = new Date(selectedDate);
+    
+    const thirtyDaysAgo = new Date(targetDateObj);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    // 3. SMART FILTER: Fetch entry targets matching today OR active within rolling 30 day window
+    let { data: book, error: err2 } = await supabaseClient
+        .from('springfield_gym_book')
+        .select('*')
+        .or(`date.eq.${selectedDate},and(plan.eq.Monthly,date.gte.${thirtyDaysAgoStr})`)
+        .order('created_at', { ascending: false });
+
     if (!err2 && book) {
-        gymRegistryBook = book;
+        // Exclude older duplicate snapshots if a subscriber renewed early or paid twice
+        const uniqueBook = [];
+        const seenNames = new Set();
+        
+        book.forEach(entry => {
+            if (!seenNames.has(entry.name) || entry.date === selectedDate) {
+                uniqueBook.push(entry);
+                if (entry.plan === "Monthly") seenNames.add(entry.name);
+            }
+        });
+        
+        gymRegistryBook = uniqueBook;
     }
     renderLogBook();
 }
@@ -57,7 +98,9 @@ async function handleDpUpload(event) {
     };
     reader.readAsDataURL(file);
 }
-
+/* ==========================================
+   PART 2: COMPUTATION & DYNAMIC RENDERING
+   ========================================== */
 function calculateAutoPrice() {
     const gender = document.getElementById('gender').value;
     const trainer = document.getElementById('trainerOpt').value;
@@ -105,27 +148,37 @@ function toggleLedgerVisibility() {
         arrow.classList.remove('rotated');
     }
 }
+
 function renderLogBook() {
     const tbody = document.getElementById('logTableBody');
     tbody.innerHTML = '';
     
     let cashSum = 0, mpesaSum = 0, debtSum = 0;
+    let attendanceTodayCount = 0;
+    
     const today = new Date();
     today.setHours(0,0,0,0);
+    const selectedDate = document.getElementById('datePaid').value || new Date().toISOString().split('T')[0];
 
     gymRegistryBook.forEach(entry => {
         if (activePrintMode === "Daily" && entry.date !== targetPrintDate) return;
         if (activePrintMode === "Monthly" && entry.date.substring(0, 7) !== targetPrintDate.substring(0, 7)) return;
 
-        cashSum += (entry.method === "Cash") ? Number(entry.paid) : 0;
-        mpesaSum += (entry.method === "M-Pesa") ? Number(entry.paid) : 0;
+        // Money and attendance sums only evaluate if the entry matches the chosen workspace target date
+        if (entry.date === selectedDate) {
+            cashSum += (entry.method === "Cash") ? Number(entry.paid) : 0;
+            mpesaSum += (entry.method === "M-Pesa") ? Number(entry.paid) : 0;
+            attendanceTodayCount++;
+        }
+        
+        // Track outstanding debt balances for items showing inside active lists
         debtSum += Number(entry.balance);
 
         const tr = document.createElement('tr');
-        const planBadge = entry.plan === 'Session' ? 'badge-session' : 'badge-monthly';
+        const planBadge = (entry.plan === 'Session' || entry.plan === 'Daily Session') ? 'badge-session' : 'badge-monthly';
         let renewalMarkup = "";
 
-        if (entry.plan === "Session") {
+        if (entry.plan === "Session" || entry.plan === "Daily Session") {
             renewalMarkup = `<span class="badge badge-active">Session Pass</span>`;
         } else {
             const entryDateObj = new Date(entry.date);
@@ -155,7 +208,11 @@ function renderLogBook() {
             <td>${mpesaInfo}</td>
             <td>${entry.date}</td>
             <td>${renewalMarkup}</td>
-            <td class="no-print"><button class="btn-print-row" onclick="printSingleReceipt('${entry.name}', '${entry.date}', ${entry.id})" style="cursor:pointer;">Receipt</button></td>
+            <td class="no-print" style="display: flex; gap: 4px; flex-direction: column;">
+                <button class="btn-print-row" onclick="printSingleReceipt('${entry.name}', '${entry.date}', ${entry.id})" style="cursor:pointer;">Receipt</button>
+                <button class="btn-print-row btn-month" onclick="editCustomer(${entry.id})" style="cursor:pointer; background-color: #e6a23c;">Edit</button>
+                <button class="btn-print-row btn-day" onclick="deleteCustomer(${entry.id})" style="cursor:pointer; background-color: var(--primary);">Delete</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -163,8 +220,15 @@ function renderLogBook() {
     document.getElementById('totalCashSum').innerText = `Ksh ${cashSum.toLocaleString()}`;
     document.getElementById('totalMpesaSum').innerText = `Ksh ${mpesaSum.toLocaleString()}`;
     document.getElementById('totalDebtSum').innerText = `Ksh ${debtSum.toLocaleString()}`;
+    
+    const counterEl = document.getElementById('liveAttendanceCount');
+    if (counterEl) {
+        counterEl.innerText = `${attendanceTodayCount} ${attendanceTodayCount === 1 ? 'Person' : 'People'}`;
+    }
 }
-
+/* ==========================================
+   PART 3: ACTIONS, PERSISTENCE & AUDITING
+   ========================================== */
 document.getElementById('logForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -208,7 +272,6 @@ function printSingleReceipt(memberName, datePaid, id) {
     if (!match) return;
     evaluateFinancialPrintState();
     
-    // EMBEDS THE MEMBER NAME AND DATE IN THE PRINT FILENAME AND HEADER TITLE
     document.title = "Receipt_" + memberName.replace(/\s+/g, '_') + "_" + datePaid;
     document.getElementById('printReportHeader').innerHTML = `<h2>SPRINGFIELD GYM - RECEIPT FOR ${memberName.toUpperCase()}</h2><p>Issued By: ${match.staff} | Payment Date: ${datePaid} | Print Run: ${new Date().toLocaleDateString()}</p>`;
     
@@ -284,4 +347,96 @@ function printMonthlyAudit() {
     renderLogBook();
     document.body.classList.remove('hide-print-totals');
     document.title = "Springfield Gym - Shared System";
+}
+
+async function viewHistoricalDay() {
+    const chosenDate = document.getElementById('historyDateFilter').value;
+    if (!chosenDate) return;
+
+    document.getElementById('livePrintTimestamp').innerText = "Viewing History: " + chosenDate;
+
+    let { data: book, error } = await supabaseClient
+        .from('springfield_gym_book')
+        .select('*')
+        .eq('date', chosenDate)
+        .order('created_at', { ascending: false });
+
+    if (!error && book) {
+        gymRegistryBook = book;
+        
+        const originalMode = activePrintMode;
+        const originalTargetDate = targetPrintDate;
+        
+        activePrintMode = "Daily";
+        targetPrintDate = chosenDate;
+        
+        renderLogBook();
+        
+        activePrintMode = originalMode;
+        targetPrintDate = originalTargetDate; 
+    } else {
+        alert("No entries found for " + chosenDate);
+    }
+}
+
+async function resetLedgerToCurrent() {
+    document.getElementById('historyDateFilter').value = '';
+    document.getElementById('livePrintTimestamp').innerText = '';
+    await downloadCloudData();
+}
+
+async function deleteCustomer(id) {
+    if (!confirm("Are you sure you want to permanently delete this record from the database?")) return;
+    
+    const { error } = await supabaseClient
+        .from('springfield_gym_book')
+        .delete()
+        .eq('id', id);
+
+    if (!error) {
+        alert("Record deleted successfully.");
+        await downloadCloudData(); 
+    } else {
+        alert("Failed to delete record: " + error.message);
+    }
+}
+
+// FIXED: NOW INCLUDES DATE MODIFICATION POPUP WINDOW
+async function editCustomer(id) {
+    const match = gymRegistryBook.find(r => r.id === id);
+    if (!match) return;
+
+    const newName = prompt("Edit Member Name:", match.name);
+    if (newName === null) return; 
+    
+    const newPhone = prompt("Edit Phone Number:", match.phone || "");
+    
+    // 1. ADDED DATE EDIT BOX POPUP (Expects YYYY-MM-DD format)
+    const newDate = prompt("Edit Registration Date (YYYY-MM-DD):", match.date);
+    if (newDate === null) return;
+
+    const newPaid = prompt("Edit Amount Paid (Ksh):", match.paid);
+    if (newPaid === null) return;
+
+    const updatedPaid = Number(newPaid) || 0;
+    const updatedBalance = match.total - updatedPaid; 
+
+    // 2. SAVES THE UPDATED DATE BACK TO SUPABASE
+    const { error } = await supabaseClient
+        .from('springfield_gym_book')
+        .update({ 
+            name: newName.trim(), 
+            phone: newPhone.trim(), 
+            date: newDate.trim(), // Saves updated date field
+            paid: updatedPaid,
+            balance: updatedBalance
+        })
+        .eq('id', id);
+
+    if (!error) {
+        alert("Customer record updated safely.");
+        await downloadCloudData();
+    } else {
+        alert("Failed to update cloud data: " + error.message);
+    }
 }
