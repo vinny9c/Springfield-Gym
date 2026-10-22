@@ -25,7 +25,12 @@
     <div class="container">
         <header class="no-print">
             <h1>SPRINGFIELD GYM</h1>
-            <div class="active-user-badge">Desk Active: <span id="currentUserLabel">None</span></div>
+<div style="display: flex; align-items: center; gap: 10px;">
+    <span>Desk Active: <strong id="currentUserLabel">None</strong></span>
+    <img id="headerActiveStaffAvatar" src="https://placeholder.com" alt="Staff DP" 
+         style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; display: none;">
+</div>
+
         </header>
 
         <!-- FINANCIAL METRICS -->
@@ -43,7 +48,7 @@
                 <div class="card-value" id="totalDebtSum">Ksh 0</div>
             </div>
             <div class="summary-card" style="border-left-color: #007acc;">
-                <div class="card-title">Active Members Today</div>
+                <div class="card-title">Members Paid Today</div>
                 <div class="card-value" id="liveAttendanceCount">0 People</div>
             </div>
 
@@ -112,7 +117,7 @@
                     </div>
 
                     <div class="till-banner">
-                        LIPA NA M-PESA TILL: <strong>597593</strong>
+                        LIPA NA M-PESA TILL: <strong>5975937</strong>
                         <br><span class="till-sub">Account: Springfield Gym 1</span>
                     </div>
 
@@ -184,22 +189,55 @@
                     </div>
                 </div>
 
-                <div class="table-wrapper hidden" id="ledgerTableWrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Member & Staff Info</th>
-                                <th>Plan Details</th>
-                                <th>Financials</th>
-                                <th>Method / Code</th>
-                                <th>Date Paid</th>
-                                <th>Status / Renewal</th>
-                                <th class="no-print">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logTableBody"></tbody>
-                    </table>
-                </div>
+               <!-- REPLACE YOUR EXISTING LEDGER TABLE WRAPPER CONTEXT WITH THIS DUAL STRUCTURE -->
+<div id="ledgerTableWrapper" class="table-wrapper">
+     <!-- SECTION A: DAILY SESSION PASSES TABLE -->
+    <div style="margin-top: 25px;">
+        <h3 style="color: #ff9d00; border-left: 4px solid #ff9d00; padding-left: 10px; margin-bottom: 12px; letter-spacing: 0.5px;">
+            ⚡ Daily Session Passes (Today's Check-ins)
+        </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Member & Staff Info</th>
+                    <th>Plan Details</th>
+                    <th>Financials</th>
+                    <th>Method / Code</th>
+                    <th>Date Paid</th>
+                    <th>Status / Renewal</th>
+                    <th class="no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="dailyLogTableBody">
+                <!-- Daily rows render here dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- SECTION B: MONTHLY SUBSCRIPTIONS TABLE -->
+    <div style="margin-top: 25px; margin-bottom: 30px;">
+        <h3 style="color: #0099ff; border-left: 4px solid #0099ff; padding-left: 10px; margin-bottom: 12px; letter-spacing: 0.5px;">
+            💎 Active Monthly Memberships (Rolling 30 Days)
+        </h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Member & Staff Info</th>
+                    <th>Plan Details</th>
+                    <th>Financials</th>
+                    <th>Method / Code</th>
+                    <th>Date Paid</th>
+                    <th>Status / Renewal</th>
+                    <th class="no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="monthlyLogTableBody">
+                <!-- Monthly rows render here dynamically -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
             </div>
         </div>
     </div>

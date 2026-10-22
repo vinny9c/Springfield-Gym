@@ -1,3 +1,4 @@
+
 const SUPABASE_URL = "https://eaqzjeexeduceevexmmb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Uh7k-VG0YDuMxcvLbZmbog_006UtmzW";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -8,7 +9,6 @@ let staffAvatars = {};
 let activePrintMode = "All";
 let targetPrintDate = "";
 
-// Automatically handle calendar transitions if system is left open overnight
 function listenForNewDay() {
     setInterval(() => {
         const dateInput = document.getElementById('datePaid');
@@ -19,7 +19,7 @@ function listenForNewDay() {
                 downloadCloudData(); 
             }
         }
-    }, 60000); // Polls every 60 seconds
+    }, 60000);
 }
 listenForNewDay();
 
@@ -29,38 +29,36 @@ async function selectUser(user) {
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
     
+    const headerAvatar = document.getElementById('headerActiveStaffAvatar');
+    if (headerAvatar) headerAvatar.style.display = 'inline-block';
+    
     await downloadCloudData();
     calculateAutoPrice();
 }
 
 async function downloadCloudData() {
-    // 1. Download staff avatar data as usual
     let { data: dps, error: err1 } = await supabaseClient.from('springfield_gym_dps').select('*');
     if (!err1 && dps) {
         dps.forEach(d => { staffAvatars[d.staff_name] = d.avatar_base64; });
     }
     
     if (staffAvatars[currentStaffUser]) {
-        document.getElementById('staffAvatarPreview').src = staffAvatars[currentStaffUser];
+        const base64Img = staffAvatars[currentStaffUser];
+        document.getElementById('staffAvatarPreview').src = base64Img;
+        const headerAvatar = document.getElementById('headerActiveStaffAvatar');
+        if (headerAvatar) headerAvatar.src = base64Img;
     }
 
-    // 2. Compute date windows for active rolling monthly validation (Exactly 30 Days)
     const selectedDate = document.getElementById('datePaid').value || new Date().toISOString().split('T')[0];
-    const targetDateObj = new Date(selectedDate);
-    
-    const thirtyDaysAgo = new Date(targetDateObj);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-    // 3. SMART FILTER: Fetch entry targets matching today OR active within rolling 30 day window
+    // SMART PIPELINE: Pulls today's walk-ins AND ALL monthly subscriptions ever registered
     let { data: book, error: err2 } = await supabaseClient
         .from('springfield_gym_book')
         .select('*')
-        .or(`date.eq.${selectedDate},and(plan.eq.Monthly,date.gte.${thirtyDaysAgoStr})`)
+        .or(`date.eq.${selectedDate},plan.eq.Monthly`)
         .order('created_at', { ascending: false });
 
     if (!err2 && book) {
-        // Exclude older duplicate snapshots if a subscriber renewed early or paid twice
         const uniqueBook = [];
         const seenNames = new Set();
         
@@ -83,7 +81,6 @@ async function handleDpUpload(event) {
     const reader = new FileReader();
     reader.onloadend = async function() {
         const base64String = reader.result;
-        
         const { error } = await supabaseClient
             .from('springfield_gym_dps')
             .upsert({ staff_name: currentStaffUser, avatar_base64: base64String });
@@ -91,6 +88,8 @@ async function handleDpUpload(event) {
         if (!error) {
             staffAvatars[currentStaffUser] = base64String;
             document.getElementById('staffAvatarPreview').src = base64String;
+            const headerAvatar = document.getElementById('headerActiveStaffAvatar');
+            if (headerAvatar) headerAvatar.src = base64String;
             renderLogBook();
         } else {
             alert("Database upload failed.");
@@ -98,9 +97,9 @@ async function handleDpUpload(event) {
     };
     reader.readAsDataURL(file);
 }
-/* ==========================================
-   PART 2: COMPUTATION & DYNAMIC RENDERING
-   ========================================== */
+/* ========================================================
+   PART 2: SPLIT-LEDGER DATA ROUTING & EXPIRED RED STYLING
+   ======================================================== */
 function calculateAutoPrice() {
     const gender = document.getElementById('gender').value;
     const trainer = document.getElementById('trainerOpt').value;
@@ -150,8 +149,11 @@ function toggleLedgerVisibility() {
 }
 
 function renderLogBook() {
-    const tbody = document.getElementById('logTableBody');
-    tbody.innerHTML = '';
+    const monthlyTbody = document.getElementById('monthlyLogTableBody');
+    const dailyTbody = document.getElementById('dailyLogTableBody');
+    
+    if (monthlyTbody) monthlyTbody.innerHTML = '';
+    if (dailyTbody) dailyTbody.innerHTML = '';
     
     let cashSum = 0, mpesaSum = 0, debtSum = 0;
     let attendanceTodayCount = 0;
@@ -164,28 +166,37 @@ function renderLogBook() {
         if (activePrintMode === "Daily" && entry.date !== targetPrintDate) return;
         if (activePrintMode === "Monthly" && entry.date.substring(0, 7) !== targetPrintDate.substring(0, 7)) return;
 
-        // Money and attendance sums only evaluate if the entry matches the chosen workspace target date
+        // Isolate revenue collection mathematics to the active day
         if (entry.date === selectedDate) {
             cashSum += (entry.method === "Cash") ? Number(entry.paid) : 0;
             mpesaSum += (entry.method === "M-Pesa") ? Number(entry.paid) : 0;
             attendanceTodayCount++;
         }
         
-        // Track outstanding debt balances for items showing inside active lists
         debtSum += Number(entry.balance);
 
         const tr = document.createElement('tr');
-        const planBadge = (entry.plan === 'Session' || entry.plan === 'Daily Session') ? 'badge-session' : 'badge-monthly';
+        const isSession = (entry.plan === 'Session' || entry.plan === 'Daily Session');
+        const planBadge = isSession ? 'badge-session' : 'badge-monthly';
         let renewalMarkup = "";
 
-        if (entry.plan === "Session" || entry.plan === "Daily Session") {
+        if (isSession) {
             renewalMarkup = `<span class="badge badge-active">Session Pass</span>`;
         } else {
             const entryDateObj = new Date(entry.date);
             const expiryDate = new Date(entryDateObj);
             expiryDate.setDate(expiryDate.getDate() + 30);
             const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-            renewalMarkup = daysLeft < 0 ? `<span class="badge badge-expired">Expired</span> <span class="text-action-required">Add Money</span>` : `<span class="badge badge-active">Active</span> <small style="display:block;color:var(--text-muted);margin-top:2px;">${daysLeft} Days Left</small>`;
+            
+            // RED NOT PAID STYLING APPLIED HERE
+            if (daysLeft < 0) {
+                tr.style.backgroundColor = "rgba(255, 42, 42, 0.15)"; // Soft red background highlighting row
+                renewalMarkup = `<span class="badge badge-expired" style="background-color: var(--primary); color: white;">NOT PAID / EXPIRED</span>
+                                 <span class="text-action-required" style="color: var(--primary); font-weight: bold; display: block; margin-top: 4px;">Renew Subscription</span>`;
+            } else {
+                renewalMarkup = `<span class="badge badge-active">Active</span> 
+                                 <small style="display:block;color:var(--text-muted);margin-top:2px;">${daysLeft} Days Left</small>`;
+            }
         }
 
         const mpesaInfo = entry.method === "M-Pesa" ? `M-Pesa<small style="display:block;color:var(--text-muted);text-transform:uppercase;">${entry.code || 'NO CODE'}</small>` : 'Cash';
@@ -214,7 +225,12 @@ function renderLogBook() {
                 <button class="btn-print-row btn-day" onclick="deleteCustomer(${entry.id})" style="cursor:pointer; background-color: var(--primary);">Delete</button>
             </td>
         `;
-        tbody.appendChild(tr);
+
+        if (isSession) {
+            if (dailyTbody) dailyTbody.appendChild(tr);
+        } else {
+            if (monthlyTbody) monthlyTbody.appendChild(tr);
+        }
     });
 
     document.getElementById('totalCashSum').innerText = `Ksh ${cashSum.toLocaleString()}`;
@@ -226,9 +242,9 @@ function renderLogBook() {
         counterEl.innerText = `${attendanceTodayCount} ${attendanceTodayCount === 1 ? 'Person' : 'People'}`;
     }
 }
-/* ==========================================
-   PART 3: ACTIONS, PERSISTENCE & AUDITING
-   ========================================== */
+/* ========================================================
+   PART 3: ATOMIC FORM ACTIONS, PRINT RUNS & WRITE FILTERS
+   ======================================================== */
 document.getElementById('logForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -401,7 +417,6 @@ async function deleteCustomer(id) {
     }
 }
 
-// FIXED: NOW INCLUDES DATE MODIFICATION POPUP WINDOW
 async function editCustomer(id) {
     const match = gymRegistryBook.find(r => r.id === id);
     if (!match) return;
@@ -410,8 +425,6 @@ async function editCustomer(id) {
     if (newName === null) return; 
     
     const newPhone = prompt("Edit Phone Number:", match.phone || "");
-    
-    // 1. ADDED DATE EDIT BOX POPUP (Expects YYYY-MM-DD format)
     const newDate = prompt("Edit Registration Date (YYYY-MM-DD):", match.date);
     if (newDate === null) return;
 
@@ -421,13 +434,12 @@ async function editCustomer(id) {
     const updatedPaid = Number(newPaid) || 0;
     const updatedBalance = match.total - updatedPaid; 
 
-    // 2. SAVES THE UPDATED DATE BACK TO SUPABASE
     const { error } = await supabaseClient
         .from('springfield_gym_book')
         .update({ 
             name: newName.trim(), 
             phone: newPhone.trim(), 
-            date: newDate.trim(), // Saves updated date field
+            date: newDate.trim(), 
             paid: updatedPaid,
             balance: updatedBalance
         })
