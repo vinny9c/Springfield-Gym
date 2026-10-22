@@ -11,19 +11,21 @@
 </head>
 
 <body>
-
-    <!-- STAFF AUTHENTICATION MODAL -->
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-box">
-            <h2>SPRINGFIELD GYM</h2>
-            <p class="login-sub">Select your identity to access the log book:</p>
-            <button class="user-select-btn" onclick="selectUser('Shedy (Owner)')">Shedy (Owner)</button>
-            <button class="user-select-btn" onclick="selectUser('Vincent')">Vincent</button>
-            <button class="user-select-btn" onclick="selectUser('Kevoh')">Kevoh</button>
-        </div>
+  <!-- STAFF AUTHENTICATION MODAL WITH PASSWORDS INTERACTION -->
+<div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+        <h2>SPRINGFIELD GYM</h2>
+        <p class="login-sub">Select your identity and enter password to access terminal:</p>
+        
+        <button class="user-select-btn" onclick="secureSelectUser('Shedy (Owner)', '123')">Shedy (Owner)</button>
+        <button class="user-select-btn" onclick="secureSelectUser('Vincent', 'vin')">Vincent</button>
+        <button class="user-select-btn" onclick="secureSelectUser('Kevoh', '55')">Kevoh</button>
     </div>
+</div>
+
     <div class="container">
         <header class="no-print">
+            
             <h1>SPRINGFIELD GYM</h1>
 <div style="display: flex; align-items: center; gap: 10px;">
     <span>Desk Active: <strong id="currentUserLabel">None</strong></span>

@@ -1,4 +1,3 @@
-
 const SUPABASE_URL = "https://eaqzjeexeduceevexmmb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Uh7k-VG0YDuMxcvLbZmbog_006UtmzW";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -8,6 +7,9 @@ let gymRegistryBook = [];
 let staffAvatars = {};
 let activePrintMode = "All";
 let targetPrintDate = "";
+
+// Admin Master Deletion PIN Configuration
+const MASTER_ADMIN_DELETE_PIN = "0000"; 
 
 function listenForNewDay() {
     setInterval(() => {
@@ -22,18 +24,25 @@ function listenForNewDay() {
     }, 60000);
 }
 listenForNewDay();
-
-async function selectUser(user) {
-    currentStaffUser = user;
-    document.getElementById('currentUserLabel').innerText = user;
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
+// Password Verification Challenge before opening the system
+function secureSelectUser(user, correctPassword) {
+    const userAttempt = prompt(`Enter security password for account profile [ ${user} ] :`);
+    if (userAttempt === null) return; // User cancelled
     
-    const headerAvatar = document.getElementById('headerActiveStaffAvatar');
-    if (headerAvatar) headerAvatar.style.display = 'inline-block';
-    
-    await downloadCloudData();
-    calculateAutoPrice();
+    if (userAttempt === correctPassword) {
+        currentStaffUser = user;
+        document.getElementById('currentUserLabel').innerText = user;
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('datePaid').value = new Date().toISOString().split('T')[0];
+        
+        const headerAvatar = document.getElementById('headerActiveStaffAvatar');
+        if (headerAvatar) headerAvatar.style.display = 'inline-block';
+        
+        downloadCloudData();
+        calculateAutoPrice();
+    } else {
+        alert("🔒 Access Denied: Incorrect profile security password.");
+    }
 }
 
 async function downloadCloudData() {
@@ -51,7 +60,6 @@ async function downloadCloudData() {
 
     const selectedDate = document.getElementById('datePaid').value || new Date().toISOString().split('T')[0];
 
-    // SMART PIPELINE: Pulls today's walk-ins AND ALL monthly subscriptions ever registered
     let { data: book, error: err2 } = await supabaseClient
         .from('springfield_gym_book')
         .select('*')
@@ -97,6 +105,7 @@ async function handleDpUpload(event) {
     };
     reader.readAsDataURL(file);
 }
+
 /* ========================================================
    PART 2: SPLIT-LEDGER DATA ROUTING & EXPIRED RED STYLING
    ======================================================== */
@@ -166,7 +175,6 @@ function renderLogBook() {
         if (activePrintMode === "Daily" && entry.date !== targetPrintDate) return;
         if (activePrintMode === "Monthly" && entry.date.substring(0, 7) !== targetPrintDate.substring(0, 7)) return;
 
-        // Isolate revenue collection mathematics to the active day
         if (entry.date === selectedDate) {
             cashSum += (entry.method === "Cash") ? Number(entry.paid) : 0;
             mpesaSum += (entry.method === "M-Pesa") ? Number(entry.paid) : 0;
@@ -188,9 +196,8 @@ function renderLogBook() {
             expiryDate.setDate(expiryDate.getDate() + 30);
             const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
             
-            // RED NOT PAID STYLING APPLIED HERE
             if (daysLeft < 0) {
-                tr.style.backgroundColor = "rgba(255, 42, 42, 0.15)"; // Soft red background highlighting row
+                tr.style.backgroundColor = "rgba(255, 42, 42, 0.15)";
                 renewalMarkup = `<span class="badge badge-expired" style="background-color: var(--primary); color: white;">NOT PAID / EXPIRED</span>
                                  <span class="text-action-required" style="color: var(--primary); font-weight: bold; display: block; margin-top: 4px;">Renew Subscription</span>`;
             } else {
@@ -242,8 +249,9 @@ function renderLogBook() {
         counterEl.innerText = `${attendanceTodayCount} ${attendanceTodayCount === 1 ? 'Person' : 'People'}`;
     }
 }
+
 /* ========================================================
-   PART 3: ATOMIC FORM ACTIONS, PRINT RUNS & WRITE FILTERS
+   PART 3: ATOMIC ACTIONS & PASSWORD-PROTECTED DATA WRITE
    ======================================================== */
 document.getElementById('logForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -401,7 +409,15 @@ async function resetLedgerToCurrent() {
     await downloadCloudData();
 }
 
+// PROTECTED DELETION GATEWAY: Requires a Master PIN before deleting records
 async function deleteCustomer(id) {
+    const pinAttempt = prompt("⚠️ Security Check: Enter Master Admin PIN to delete this row:");
+    if (pinAttempt === null) return;
+    
+    if (pinAttempt !== MASTER_ADMIN_DELETE_PIN) {
+        return alert("🔒 Access Denied: Incorrect Master Admin security PIN.");
+    }
+    
     if (!confirm("Are you sure you want to permanently delete this record from the database?")) return;
     
     const { error } = await supabaseClient
