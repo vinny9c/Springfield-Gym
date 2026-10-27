@@ -8,7 +8,6 @@ let staffAvatars = {};
 let activePrintMode = "All";
 let targetPrintDate = "";
 
-// Admin Master Deletion PIN Configuration
 const MASTER_ADMIN_DELETE_PIN = "0000"; 
 
 function listenForNewDay() {
@@ -24,10 +23,10 @@ function listenForNewDay() {
     }, 60000);
 }
 listenForNewDay();
-// Password Verification Challenge before opening the system
+
 function secureSelectUser(user, correctPassword) {
     const userAttempt = prompt(`Enter security password for account profile [ ${user} ] :`);
-    if (userAttempt === null) return; // User cancelled
+    if (userAttempt === null) return;
     
     if (userAttempt === correctPassword) {
         currentStaffUser = user;
@@ -81,7 +80,6 @@ async function downloadCloudData() {
     }
     renderLogBook();
 }
-
 async function handleDpUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -106,9 +104,6 @@ async function handleDpUpload(event) {
     reader.readAsDataURL(file);
 }
 
-/* ========================================================
-   PART 2: SPLIT-LEDGER DATA ROUTING & EXPIRED RED STYLING
-   ======================================================== */
 function calculateAutoPrice() {
     const gender = document.getElementById('gender').value;
     const trainer = document.getElementById('trainerOpt').value;
@@ -249,10 +244,6 @@ function renderLogBook() {
         counterEl.innerText = `${attendanceTodayCount} ${attendanceTodayCount === 1 ? 'Person' : 'People'}`;
     }
 }
-
-/* ========================================================
-   PART 3: ATOMIC ACTIONS & PASSWORD-PROTECTED DATA WRITE
-   ======================================================== */
 document.getElementById('logForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -406,10 +397,15 @@ async function viewHistoricalDay() {
 async function resetLedgerToCurrent() {
     document.getElementById('historyDateFilter').value = '';
     document.getElementById('livePrintTimestamp').innerText = '';
+    
+    // Clear the search bar field text when resetting
+    const searchBar = document.getElementById('ledgerSearchBar');
+    if (searchBar) searchBar.value = ''; 
+    
     await downloadCloudData();
 }
 
-// PROTECTED DELETION GATEWAY: Requires a Master PIN before deleting records
+
 async function deleteCustomer(id) {
     const pinAttempt = prompt("⚠️ Security Check: Enter Master Admin PIN to delete this row:");
     if (pinAttempt === null) return;
@@ -467,4 +463,27 @@ async function editCustomer(id) {
     } else {
         alert("Failed to update cloud data: " + error.message);
     }
+}
+function filterLedgerTables() {
+    const query = document.getElementById('ledgerSearchBar').value.toLowerCase().trim();
+    
+    const tables = ['dailyLogTableBody', 'monthlyLogTableBody'];
+    
+    tables.forEach(tableId => {
+        const tbody = document.getElementById(tableId);
+        if (!tbody) return;
+        
+        const rows = tbody.getElementsByTagName('tr');
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const textContent = row.textContent.toLowerCase();
+            
+            if (textContent.includes(query)) {
+                row.style.display = ""; 
+            } else {
+                row.style.display = "none"; 
+            }
+        }
+    });
 }
