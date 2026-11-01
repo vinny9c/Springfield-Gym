@@ -1,6 +1,8 @@
 {
   "name": "Springfield Gym Shared System",
   "short_name": "Springfield Gym",
+  "description": "Logbook and receipt management platform for Springfield Gym.",
+  "id": "/Springfield-Gym/",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#060608",
@@ -8,10 +10,16 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://flaticon.com",
+      "src": "https://icons8.com",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://icons8.com",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
