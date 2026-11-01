@@ -385,6 +385,11 @@ async function viewHistoricalDay() {
         activePrintMode = "Daily";
         targetPrintDate = chosenDate;
         
+        const dateInput = document.getElementById('datePaid');
+        if (dateInput) {
+            dateInput.value = chosenDate;
+        }
+        
         renderLogBook();
         
         activePrintMode = originalMode;
@@ -393,6 +398,7 @@ async function viewHistoricalDay() {
         alert("No entries found for " + chosenDate);
     }
 }
+
 
 async function resetLedgerToCurrent() {
     document.getElementById('historyDateFilter').value = '';
