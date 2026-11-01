@@ -1,0 +1,17 @@
+{
+  "name": "Springfield Gym Shared System",
+  "short_name": "Springfield Gym",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#060608",
+  "theme_color": "#FFD700",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://flaticon.com",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
